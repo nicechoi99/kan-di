@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+title: "KAN-DI: Discriminative Bayesian Optimization with a Kolmogorov-Arnold Prior"
+message: "If you use this software, please cite both the software and the paper."
+type: software
+authors:
+  - given-names: Jaehyeong
+    family-names: Choi
+    affiliation: "Korea Institute of Science and Technology"
+  - given-names: Kyeongsu
+    family-names: Kim
+    affiliation: "Korea Institute of Science and Technology"
+  - given-names: Ung
+    family-names: Lee
+    affiliation: "Korea Institute of Science and Technology"
+abstract: >-
+  Bayesian optimization that uses a pruned Kolmogorov-Arnold network as the
+  Gaussian-process prior mean and a composite acquisition function
+  (exploitation, discrimination, uniformity) so that one optimization loop
+  maximizes the response and identifies its governing descriptors at the
+  same time. Descriptor importance is the average gradient energy (AGE),
+  the squared partial derivative of the closed-form KAN response averaged
+  over the candidate pool.
+license: MIT
+repository-code: "https://github.com/nicechoi99/kan-di"
+keywords:
+  - Bayesian optimization
+  - Kolmogorov-Arnold network
+  - descriptor discovery
+  - design of experiments
+  - materials informatics
+preferred-citation:
+  type: article
+  title: "Experimental Design for Descriptor Discovery: a Kolmogorov-Arnold Prior with Discriminative Bayesian Optimization"
+  authors:
+    - given-names: Jaehyeong
+      family-names: Choi
+    - given-names: Damdae
+      family-names: Park
+    - given-names: Muhammad Dzulfahmi
+      family-names: Ramadhan
+    - given-names: Jinu
+      family-names: Choi
+    - given-names: Changsu
+      family-names: Kim
+    - given-names: Ki Bong
+      family-names: Lee
+    - given-names: Kyeongsu
+      family-names: Kim
+    - given-names: Ung
+      family-names: Lee
+  journal: "Nature Computational Science"
+  year: 2026

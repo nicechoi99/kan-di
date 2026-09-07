@@ -1,0 +1,39 @@
+# Data & large artifacts (not distributed)
+dat/
+data/
+*.pkl
+*.npy
+*.npz
+*.csv
+*.xlsx
+
+# Figures / images
+img/
+figures/
+paper/
+*.png
+*.svg
+*.pdf
+*.jpg
+*.jpeg
+
+# Logs / caches / temp
+*.log
+temp/
+cache/
+*_cache/
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+env/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
