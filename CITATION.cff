@@ -22,6 +22,7 @@ abstract: >-
   over the candidate pool.
 license: MIT
 repository-code: "https://github.com/nicechoi99/kan-di"
+doi: 10.5281/zenodo.22652793
 keywords:
   - Bayesian optimization
   - Kolmogorov-Arnold network
