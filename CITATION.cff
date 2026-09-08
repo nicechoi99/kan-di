@@ -31,7 +31,7 @@ keywords:
   - materials informatics
 preferred-citation:
   type: article
-  title: "Experimental Design for Descriptor Discovery: a Kolmogorov-Arnold Prior with Discriminative Bayesian Optimization"
+  title: "Experimental Design for Descriptor Discovery: Kolmogorov-Arnold Prior with Discriminative Bayesian Optimization"
   authors:
     - given-names: Jaehyeong
       family-names: Choi
