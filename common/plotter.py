@@ -1,7 +1,6 @@
 import os
 from copy import deepcopy
 
-import imageio
 import numpy as np
 import sympy as sp
 from scipy.stats import gaussian_kde
@@ -621,6 +620,7 @@ def plot_trajectory(ax, x, y, colors=None, xlabel=None, ylabel=None, labels=None
 
 
 def render_animation(folder, extension='.png', duration=1000, max_frame=30):
+    import imageio  # optional dependency (requirements-optional.txt); only GIF export needs it
     #mpl.use('TkAgg')
     
     cprint('Generating GIF using image files in', folder, '...')
@@ -714,15 +714,3 @@ def plot_data_patterns(dataset_name, show=True, save=True):
     
     plt.show()
     return
-
-if __name__ == '__main__':
-    dataset_name = 'large_feature'
-    # plot_data_patterns(dataset_name, save=True)
-    
-    # Plot y distributions
-    plot_y_distributions(dataset_name=dataset_name)
-    
-    # Render image
-    # folder = 'path/to/img/AgNP_BO/0'
-    # render_animation(folder)
-    

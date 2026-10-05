@@ -858,7 +858,7 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
     def initialize_log(self):
         # prior_r2 / swing_ratio / prior_diverged added 2026-08-21. They record the state of the KAN
         # prior at each iteration, which nothing in the log captured before. Without prior_r2 there is
-        # no way to tell afterwards whether a campaign improved because the prior became more accurate,
+        # no way to tell afterwards whether a BO run improved because the prior became more accurate,
         # and without the swing columns there is no way to tell how many iterations ran on a diverged
         # symbolic formula. Both questions otherwise cost a full rerun to answer.
         return pd.DataFrame(columns=['k', 'x_prev', 'x_next', 'y_next', 'y_max', 'a_next', 'I_next',
@@ -1085,7 +1085,7 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
         output range over the whole pool divided by the response range; the symbolic stage intermittently
         produces formulas swinging many times the response, and neither R2 nor the acquisition reveals it.
 
-        Returns NaNs for non-KAN priors and never raises, so a probe failure cannot end a campaign.
+        Returns NaNs for non-KAN priors and never raises, so a probe failure cannot end a BO run.
         """
         try:
             if not isinstance(self.m, KANMean) or getattr(self.m, 'formula', None) is None:
@@ -1186,7 +1186,7 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
         Deltas, Lambdas = eval_AGE_numeric(df, Z, zvars, x_range, eps=eps, n_samples_i=10, n_samples_j=1000)
         indices = np.argsort(lambdas)
         
-        if len(indices) > 2:  #TODO: case-specific handling
+        if len(indices) > 2:  # three or more active descriptors: I_d compares the top two (the third is read but not used)
             j1 = indices[-1]  # best descriptor
             j2 = indices[-2]  # runner-up
             j3 = indices[-3]
@@ -1450,11 +1450,3 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
             filedir =  os.path.join(self.imgoutdir, str(K[-1]) + '.svg')
             fig.savefig(filedir)
         return
-
-
-if __name__ == '__main__':
-    # # Test panel generation
-    # DiscreteBO.set_figure_panel()
-    # plt.show()
-    
-    a = 1

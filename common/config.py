@@ -3,16 +3,12 @@
 DATASET = {  # dataset_name: data_names
     'small_feature': ['AgNP', 'AutoAM', 'P3HT', 'Perovskite', 'Crossed barrel'],
     'large_feature': ['dilute_solute_diffusion', 'metallic_glass_forming', 'MOF_Td', 'polymer_Cp'],
-    'campaign': ['STEAM'],          # prospective amine screening campaign
-    'amine_screening': ['STEAM'],   # backward compatibility alias
 }
 
 # Map dataset_name to dat/ subdirectory name (handles aliases)
 DATASET_DIR = {
     'small_feature': 'small_feature',
     'large_feature': 'large_feature',
-    'campaign': 'campaign',
-    'amine_screening': 'campaign',  # amine_screening data lives in dat/campaign/
 }
 
 ALIAS = {

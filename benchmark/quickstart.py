@@ -51,7 +51,7 @@ def build_pool(function, n_candidates, n_dummy=0, seed=0):
     """Sample a discrete candidate pool in the schema `DiscreteBO` reads.
 
     The BO loop is discrete: it selects the next experiment from a fixed pool, the way a real
-    campaign selects the next compound from a library. Inputs and the objective are min-max scaled
+    screening study selects the next compound from a library. Inputs and the objective are min-max scaled
     into [0.1, 0.9] and the objective is negated so every benchmark is a maximization, both matching
     `datamanager.load_dataset`. Padded inputs are drawn independently of the response, so any
     gradient energy assigned to them is spurious by construction.

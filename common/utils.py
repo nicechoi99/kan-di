@@ -15,7 +15,11 @@ from inspect import stack
 
 import numpy as np
 import pandas as pd
-import colorcet as cc  # pip install colorcet
+try:
+    import colorcet  # optional (requirements-optional.txt); registers the 'cet_*' colormaps
+    _DISCRETE_PALETTE = 'cet_glasbey_category10'
+except ImportError:
+    _DISCRETE_PALETTE = 'tab10'
 import matplotlib as mpl
 from matplotlib import colors, rcParams, cm
 from matplotlib.figure import Figure
@@ -293,7 +297,7 @@ def get_carray(X, mapping='linear', palette=None, alpha=1, specialc=False,
         X = list(range(N))
         mapping = 'discrete'  # override
         if palette is None:
-            palette = 'cet_glasbey_category10'  # override
+            palette = _DISCRETE_PALETTE  # override
     else:
         if palette is None:
             palette = 'winter'
@@ -570,7 +574,7 @@ def detect_root(path, debug=False):
                 print(d + ' is ' + str(os.path.isdir(d)))
             print('')
 
-        # New unified structure: root contains common/, benchmark/, campaign/
+        # New unified structure: root contains common/ and benchmark/
         if 'common' in folderlist:
             return True
         # Legacy structure: root contains script/
@@ -659,7 +663,7 @@ def set_path(workingdir):
         srcdir = commondir
         if commondir not in sys.path:
             sys.path.insert(0, commondir)
-        for subdir in ['benchmark', 'campaign']:
+        for subdir in ['benchmark']:
             _d = os.path.join(rootdir, subdir)
             if os.path.isdir(_d) and _d not in sys.path:
                 sys.path.append(_d)

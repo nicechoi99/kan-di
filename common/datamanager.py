@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, QuantileTransformer, PowerTransformer, LabelEncoder
 
-from chemistry import get_sanitized_smiles
 from config import DATASET, DATASET_DIR
 from utils import plt, cprint, datadir, imgdir, set_colorbar, get_carray, checkexists
 
@@ -378,85 +377,6 @@ def extract_XY(df, col_y, cols_skip):
     return df
 
 
-def round_up_dynamic(x):
-    if x == 0:
-        return 0
-    magnitude = 10 ** np.floor(np.log10(abs(x)))
-    base = magnitude if abs(x) == magnitude else magnitude * 10
-    return np.sign(x) * np.ceil(abs(x) / base) * base
-
-
-def generate_STEAM_dataset():
-    dataset_name = 'amine_screening'
-    data_name = 'STEAM'
-    
-    # Load filtered candidates
-    filedir = os.path.join(datadir, dataset_name, '251113_STEAM2_MeOH_Purchasable_edit.csv')  #TODO: check filename
-    df = pd.read_csv(filedir)
-    df.drop(columns=['cid', 'formyl_idx', 'smiles_can', 'smiles_sanitized',  # remove unnecessary columns
-                      'min_Amount', 'min_Measure', 'min_Price_USD', 'cheapest_Supplier'], inplace=True)
-    df.rename(columns={'min_USD/g': 'price [USD/g]'}, inplace=True)
-    
-    # Load filtered candidates and experimental data
-    filedir = os.path.join(datadir, dataset_name, '251111_STEAM2_MeOH_Experiment_edit.csv')  #TODO: check filename
-    ds = pd.read_csv(filedir)
-    ds.drop(columns=['Canonical_SMILES', 'abbreviation', 'cid', 'CSV_Original_SMILES', 'smiles_can', 'smiles_sanitized'], inplace=True)
-    
-    # Canonicalize the smiles
-    df['smiles'] = df['smiles'].apply(lambda x: get_sanitized_smiles(x))
-    ds['smiles'] = ds['smiles'].apply(lambda x: get_sanitized_smiles(x))
-    
-    # Remove duplicate entries (leave one with the lowest price)
-    for smiles in df['smiles'].unique():
-        dd = df[df['smiles'] == smiles]
-        if len(dd) > 1:
-            idx_min_price = dd['price [USD/g]'].idxmin()
-            df = df.drop(dd.index[dd.index != idx_min_price])
-    
-    # Record the available methanol yield, while chgecking if every experimental data exists within candidate pool
-    df['MeOH [%]'] = None
-    for _, rows in ds.iterrows():
-        smiles = rows['smiles']
-        methanol_yield = rows['MeOH [%]']
-        
-        assert smiles in df['smiles'].values
-        
-        idx = (df['smiles'] == smiles)
-        assert len(df[idx]) == 1
-        df.loc[idx, 'MeOH [%]'] = methanol_yield
-    
-    # Remove candidates with the price above the threshold
-    dd = df[df['MeOH [%]'].notna()]
-    price_threshold = round_up_dynamic(dd['price [USD/g]'].max())
-    df = df[df['price [USD/g]'] <= price_threshold]
-    
-    # Check once again if every experimental data exists within candidate pool
-    assert np.all([smiles in df['smiles'].values for smiles in ds['smiles'].values])
-    
-    # Remove duplicates (occurs for isomers)
-    feature_name = list(df.columns)[1:-2]
-    objective_name = list(df.columns)[-1]
-    
-    df = df.groupby(feature_name, as_index=False).agg(
-        {objective_name: lambda x: np.nanmean(x.dropna().unique()),
-        df.columns[0]: 'first',
-        df.columns[-2]: 'first'}
-    )
-    df = df[['smiles'] + [c for c in df.columns if c != 'smiles']]  # smiles column is placed first
-
-    # Save data with smiles (not a feature) for future reference
-    filedir = os.path.join(datadir, dataset_name, data_name + '_with_smiles_prices.csv')
-    df.to_csv(filedir, index=False)
-    
-    # Leave feature columns only
-    df.drop(columns=['smiles', 'price [USD/g]'], inplace=True)
-    
-    # Save
-    filedir = os.path.join(datadir, dataset_name, data_name + '.csv')
-    df.to_csv(filedir, index=False)
-    return df
-
-
 def gen_demo_data(n=300, biased=False):
     """Generate synthetic demo data for testing."""
     np.random.seed(0)
@@ -597,12 +517,3 @@ def gen_benchmark_functions():
     }
 
     return benchmarks
-
-
-if __name__ == '__main__':
-    generate_STEAM_dataset()
-    
-    dataset_name = 'amine_screening'
-    scaling_methods = {'x': 'normalization', 'y': 'normalization'}
-    preprocessing(dataset_name, scaling_methods, model='tSNE', inspect=True)
-    a = 1
