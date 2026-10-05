@@ -1,4 +1,4 @@
-# Python dependencies for KAN-DI.
+# Core Python dependencies for KAN-DI (the acquisition of the KAN-DoE framework).
 #
 # Pinned to the versions used to produce the manuscript results
 # (conda env: Python 3.12, CUDA 12.1).
@@ -8,10 +8,9 @@
 #   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121   # GPU build; omit for CPU
 #   pip install -r requirements.txt
 #
-# Only what the released code imports is listed. The manuscript's figure scripts, the
-# GNN screening pipeline and the campaign analysis are not part of this release, so their
-# dependencies (xgboost, lightgbm, dtreeviz, seaborn, thermo, torch-geometric, alfabet,
-# dimorphite_dl, plams) are deliberately absent.
+# This file is everything benchmark/quickstart.py and benchmark/main.py import.
+# Extra utilities (GIF export, extended palettes, dataset embedding, Ray) are in
+# requirements-optional.txt; the benchmarks run without them.
 
 # ── Core scientific stack ─────────────────────────────────────────────────────
 numpy==2.0.2
@@ -30,17 +29,6 @@ linear-operator==0.5.3
 
 # ── Machine learning utilities ────────────────────────────────────────────────
 scikit-learn==1.6.1
-
-# ── Optional ──────────────────────────────────────────────────────────────────
-# Imported by modules that are included for completeness but not exercised by
-# benchmark/quickstart.py. Install only if you use them.
-ray==2.49.1                          # common/putils.py parallel backend
-rdkit==2024.3.5                      # common/chemistry.py SMILES handling
-chemicals==1.5.1                     # common/chemistry.py property lookups
-imageio==2.37.2                      # common/drawer.py animation export
-colorcet==3.1.0                      # common/plot_style.py extended palettes
-umap-learn==0.5.9.post2              # common/plotter.py embedding views
-pacmap==0.8.0                        # common/plotter.py embedding views
 
 # ── KAN library ───────────────────────────────────────────────────────────────
 # Vendored in `common/kan/` (adapted from pykan, MIT). No separate install needed.

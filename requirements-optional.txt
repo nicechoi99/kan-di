@@ -1,0 +1,19 @@
+# Optional dependencies for KAN-DI. None of them is needed by benchmark/quickstart.py
+# or benchmark/main.py. Each is imported only where its feature is used, so install
+# just the groups you want:
+#
+#   pip install -r requirements.txt            # core (required)
+#   pip install -r requirements-optional.txt   # all extras below
+#
+# Pinned to the versions used with the manuscript environment.
+
+# ── Plotting extras ───────────────────────────────────────────────────────────
+imageio==2.37.2                      # plotter.render_animation: GIF export of the BO monitoring frames
+colorcet==3.1.0                      # utils.get_carray: glasbey discrete palette (falls back to tab10)
+
+# ── Dataset embedding ─────────────────────────────────────────────────────────
+umap-learn==0.5.9.post2              # datamanager.preprocessing: 2-D embedding of raw CSV datasets
+pacmap==0.8.0                        # datamanager.preprocessing: 2-D embedding of raw CSV datasets
+
+# ── Parallel backend ──────────────────────────────────────────────────────────
+ray==2.49.1                          # putils: detected if installed; execution in this release stays serial

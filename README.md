@@ -1,11 +1,16 @@
 # KAN-DI: Discriminative Bayesian Optimization with a Kolmogorov–Arnold Prior
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22652793.svg)](https://doi.org/10.5281/zenodo.22652793)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22652792.svg)](https://doi.org/10.5281/zenodo.22652792)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
 Reference implementation for the paper
 **"Experimental Design for Descriptor Discovery: Kolmogorov–Arnold Prior with Discriminative Bayesian Optimization."**
+
+The paper calls the full framework **KAN-DoE**: a Kolmogorov–Arnold prior inside a
+Bayesian-optimization loop for experimental design. **KAN-DI** is its discriminative
+composite acquisition, and the variant reported in the paper is `DI-UCB-H`.
+This repository implements both.
 
 KAN-DI installs a Kolmogorov–Arnold Network (KAN) as the **prior mean of a
 Gaussian process** and couples it with a **composite acquisition function**
@@ -41,9 +46,8 @@ identifies the governing descriptors simultaneously*.
     It spreads measurements along the one axis the model currently ranks as
     governing, so the identification is not decided by a clustered sample.
 
-This release contains the **method and a runnable example only**. Figure-reproduction
-scripts, the experimental-campaign analysis, the GNN screening pipeline, and the
-distributed (Ray) execution backend are omitted.
+This release contains the **method and a runnable example only**. It does not contain
+figure scripts, plotted source data or the distributed (Ray) execution backend.
 
 ---
 
@@ -56,14 +60,14 @@ common/                  Core framework
   config.py                DATASET / COMBINATIONS / feature & output ranges
   datamanager.py           dataset loading + synthetic-benchmark generation (AGE, get_X/Y)
   utils.py, plotter.py     helpers and the built-in BO monitoring plots
-  chemistry.py             SMILES/descriptor helpers
   putils.py                minimal serial stand-in for the cluster backend (no plumbing)
-  plot_style.py            publication figure style
   kan/                     self-contained KAN implementation (custom.py, LBFGS.py, ...)
 benchmark/
   quickstart.py            self-contained example; needs no downloaded data
   main.py                  the paper's benchmark sweep; needs the datasets under dat/
-requirements.txt
+requirements.txt           core dependencies (everything the benchmarks import)
+requirements-optional.txt  extra utilities, grouped by feature
+CITATION.cff
 LICENSE
 ```
 
@@ -72,13 +76,22 @@ LICENSE
 ```bash
 conda create -n kandi python=3.12
 conda activate kandi
-pip install -r requirements.txt
+pip install -r requirements.txt            # core: runs quickstart.py and main.py
+pip install -r requirements-optional.txt   # optional extras, see below
 ```
-Core packages: `torch`, `gpytorch`, `sympy`, `scikit-learn`, `numpy`, `pandas`,
-`matplotlib`. `sympy` is not incidental: the pruned KAN is differentiated
-symbolically to obtain AGE in closed form. The remaining entries in
-`requirements.txt` are marked optional and are only needed by modules the
-quickstart does not exercise.
+`requirements.txt` is the core set: `torch`, `gpytorch`, `linear-operator`, `sympy`,
+`scikit-learn`, `numpy`, `pandas`, `scipy`, `matplotlib`, `tqdm`, `PyYAML`, `dill`.
+`sympy` is not incidental: the pruned KAN is differentiated symbolically to obtain
+AGE in closed form.
+
+`requirements-optional.txt` is not needed by either benchmark script. Each package
+is imported only inside the feature that uses it, so you can install any subset:
+
+| Group | Packages | Enables |
+|---|---|---|
+| Plotting extras | `imageio`, `colorcet` | GIF export of the BO monitoring frames (`plotter.render_animation`); the glasbey discrete palette (without `colorcet` the palette falls back to `tab10`) |
+| Dataset embedding | `umap-learn`, `pacmap` | `datamanager.preprocessing`, which builds the 2-D embedding of a raw CSV dataset |
+| Parallel backend | `ray` | detected by `putils` if installed; execution in this release stays serial |
 
 For a GPU build of PyTorch, install it before the requirements file:
 
@@ -126,12 +139,17 @@ for the large-scale runs in the paper is not included.
 
 Datasets are **not** distributed here.
 
-- **Benchmark datasets** (AgNP, AutoAM, P3HT, Perovskite, Crossed barrel,
-  dilute-solute diffusion, metallic-glass, MOF `T_d`, polymer `C_p`) are the
-  public sets compiled by Liang et al., *npj Comput. Mater.* **7**, 188 (2021).
+- **Low-dimensional benchmarks** (d = 3–5; AgNP, AutoAM, P3HT, Perovskite,
+  Crossed barrel) are the public sets compiled by Liang et al.,
+  *npj Comput. Mater.* **7**, 188 (2021).
+- **High-dimensional benchmarks** (d = 22–50) come from four separate sources:
+  dilute-solute diffusion from Wu, Mayeshiba & Morgan, *Sci. Data* **3**, 160054 (2016);
+  metallic-glass forming from Ward et al., *npj Comput. Mater.* **2**, 16028 (2016);
+  MOF `T_d` from Nandy, Duan & Kulik, *J. Am. Chem. Soc.* **143**, 17535 (2021);
+  polymer `C_p` from Kim et al., *J. Phys. Chem. C* **122**, 17575 (2018).
+  The paper's Supplementary Tables S4 and S5 list the source of every dataset.
 - **Synthetic benchmarks** (Rastrigin, Hartmann-6, Griewank, Rosenbrock, Ackley)
   are generated analytically in `common/datamanager.py:gen_benchmark_functions`.
-- **Amine-screening campaign data** are available from the authors on reasonable request.
 
 Place datasets under `dat/<group>/` as expected by `datamanager.load_dataset`.
 
@@ -164,5 +182,11 @@ MIT, see `LICENSE`. The KAN implementation under `common/kan/` derives from
 [pykan](https://github.com/KindXiaoming/pykan) (Liu et al.), also MIT licensed.
 
 ## Citation
-If you use this code, please cite the paper above and the archived version of this
-repository (the DOI badge at the top). BibTeX will be added upon publication.
+If you use this code, please cite the paper above (manuscript submitted) and the
+archived software:
+
+> Choi, J., Kim, K. & Lee, U. KAN-DI: Discriminative Bayesian Optimization with a
+> Kolmogorov–Arnold Prior. Zenodo. https://doi.org/10.5281/zenodo.22652792
+
+This concept DOI always resolves to the latest archived release. Machine-readable
+metadata are in `CITATION.cff`. BibTeX for the paper will be added upon publication.
