@@ -22,8 +22,9 @@ identifies the governing descriptors simultaneously*.
   `m(x) = f_KAN(x)`, so the GP models only the residual `y − f_KAN(x)`
   (`common/models.py:KANMean`).
 - **AGE (Average Gradient Energy)** — the importance of descriptor `i` is the
-  squared partial derivative `(∂f_KAN/∂x_i)²` averaged over the candidate pool
-  (Monte-Carlo estimate; `common/models.py:eval_AGE_numeric`). Sorting descriptors
+  squared partial derivative `(∂f_KAN/∂x_i)²` of the closed-form expression,
+  averaged over the scaled input domain by stratified sampling
+  (`common/models.py:eval_AGE_numeric`). Sorting descriptors
   by AGE defines the *leading* descriptor and the *runner-up* used by `I_d` and
   `I_u` below.
 - **Composite acquisition** `α(x) = I_e(x) + I_d(x) + I_u(x)`
@@ -81,8 +82,8 @@ pip install -r requirements-optional.txt   # optional extras, see below
 ```
 `requirements.txt` is the core set: `torch`, `gpytorch`, `linear-operator`, `sympy`,
 `scikit-learn`, `numpy`, `pandas`, `scipy`, `matplotlib`, `tqdm`, `PyYAML`, `dill`.
-`sympy` is not incidental: the pruned KAN is differentiated symbolically to obtain
-AGE in closed form.
+`sympy` is not incidental: the pruned KAN expression is differentiated symbolically,
+and AGE is the sampled mean of the squared derivative.
 
 `requirements-optional.txt` is not needed by either benchmark script. Each package
 is imported only inside the feature that uses it, so you can install any subset:
@@ -155,21 +156,39 @@ Place datasets under `dat/<group>/` as expected by `datamanager.load_dataset`.
 
 ## Results reported in the paper
 
-Median BO iterations to reach `y > y_0.9*`, 10 random initial designs per method.
-Reproduce with `python benchmark/main.py` after placing the datasets under `dat/`
-(see **Data availability**); the numbers below are read from the resulting logs.
+Median BO iterations to reach `y > y_0.9*` (first 0-based iteration whose proposal
+exceeds the target), 10 random initial designs per method, as reported in the paper:
 
-| Dataset | d | KAN-DI | best conventional baseline | KAN prior, conventional acquisition |
+| Dataset | d | KAN-DI (`DI-UCB-H`) | best zero-mean baseline | KAN prior, EI acquisition |
 |---|---|---|---|---|
-| MOF `T_d` | 50 | **16** | 42 (ZERO-EI) | 128.5 (KAN-EI) |
+| MOF `T_d` | 50 | 16 | 42 (ZERO-EI) | 128.5 (KAN-EI) |
 
-The third column is the ablation: the same KAN prior with a standard EI acquisition
-is no faster than the zero-mean baselines, so the gain comes from coupling the
-importance signal to the acquisition, not from the prior alone. On the AutoAM
-benchmark KAN-DI reaches the target in about a fifth of the baseline's iterations.
+The KAN-EI column shows that the KAN prior alone does not explain the difference.
+The acquisition functions differ in several components, so this comparison does not
+isolate the discriminative term. Full results are in the paper and its
+Supplementary Information.
 
-Full results for all nine datasets, the five synthetic contrast functions and the
-complete acquisition ablation are in the paper and its Supplementary Information.
+**Run-to-run variability.** These numbers are the paper's runs, not a guaranteed
+output of `main.py`. The KAN is reduced to a closed-form expression by pruning and
+symbolic fitting, and that step can select different descriptors when the fitted
+spline scores are close to the pruning threshold. Floating-point differences that
+change nothing else, such as `torch.use_deterministic_algorithms` or the number of
+CPU threads, are then enough to move a run onto a different path. Individual runs
+and per-dataset medians can therefore differ from the table across hardware and
+software environments. Compare distributions over seeds rather than single runs.
+
+## Known issues
+
+- **`I_u` axis (`DiscreteBO.eval_DI`).** `I_u` is meant to measure distance along the
+  leading descriptor's input column, `zindices[j1]`. The code behind the paper's
+  results reads column `j1`, the position of that descriptor among the formula's
+  symbols, which is a different column whenever the active descriptors are not
+  `x0, x1, …` in order. Set `KANDOE_IU_FIX=1` to use the intended column. The default
+  is left unchanged so that the released code matches the computation reported in
+  the paper.
+- **Constant derivatives (fixed in 1.0.2).** A pruned expression whose partial
+  derivative simplifies to a constant made the AGE evaluation raise. `eval_func`
+  now broadcasts the constant; runs that did not raise are unchanged.
 
 ## Method notes
 - Features and targets are min–max scaled to `[0.1, 0.9]`.

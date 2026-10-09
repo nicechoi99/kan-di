@@ -129,10 +129,14 @@ def eval_func(func, x):
     args = [x[:, i] for i in range(x.shape[1])]
     value = func(*args)
     
+    # A derivative that simplifies to a constant comes back from lambdify as a scalar; broadcast it to one
+    # value per row so callers can reshape it (otherwise AGE raised on, e.g., a linear KAN expression).
+    n = x.shape[0]
     if isinstance(value, list):  # maybe input x is grid
-        value = np.vstack(value).T.mean(axis=0)
+        value = np.vstack([np.broadcast_to(np.asarray(v, dtype=float), (n,)) for v in value]).T.mean(axis=0)
     else:
-        value = value.squeeze()
+        value = np.asarray(value, dtype=float)
+        value = np.full(n, float(value)) if value.ndim == 0 else value.squeeze()
     return value
 
 
@@ -1242,8 +1246,15 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
             raise RuntimeError("unexpected behavior")
             
         # Uniform improvement function
-        z = x[:, j1]
-        Z = X[:, j1]
+        # Known issue (see README): j1 is a position in zvars (formula symbols sorted by name), not an input
+        # column; the leading descriptor's column is zindices[j1]. KANDOE_IU_FIX=1 selects that column.
+        # Unset keeps x[:, j1], the computation behind the results reported in the paper.
+        if os.environ.get('KANDOE_IU_FIX', '0') == '1':
+            z = x[:, zindices[j1]]
+            Z = X[:, zindices[j1]]
+        else:
+            z = x[:, j1]
+            Z = X[:, j1]
         d_min = torch.min(np.abs(z[:,None] - Z[None,:]), axis=1).values
         I_u = d_min/(x_range[1] - x_range[0])
         
@@ -1375,7 +1386,7 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
         # Plot acquisition function
         plot_2D_contour(fig, axes[0,0], Z, Y_mean, indices_initial, 
                         indices_sampled, indices_unsampled, indices_y_subopt,
-                        idx_next, idx_max, idx_opt, xlabel=zlabel, ylabel='$\hat{Y}$')
+                        idx_next, idx_max, idx_opt, xlabel=zlabel, ylabel=r'$\hat{Y}$')
         
         # Plot objective surface
         plot_2D_contour(fig, axes[1,0], Z, A, indices_initial, 
@@ -1386,7 +1397,7 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
         plot_regressor_accuracy(axes[0,1], Y, Y_mean, indices_initial, 
                                 indices_sampled, indices_unsampled, indices_y_subopt,
                                 idx_next, idx_max, idx_opt, x_range=x_range, y_range=y_range,
-                                xlabel='$Y(x)$', ylabel='$\mu(x)$', legend=False)
+                                xlabel='$Y(x)$', ylabel=r'$\mu(x)$', legend=False)
         
         # Plot improvement function
         K = self.log.index.values
@@ -1407,11 +1418,11 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
             noise = np.vstack(self.log['noise'].values)
             outputscale = np.vstack(self.log['outputscale'].values)
             lengthscale = np.vstack(self.log['lengthscale'].values)
-            length_scale_labels = [f'$\ell_{i}$' for i in range(lengthscale.shape[-1])]
+            length_scale_labels = [rf'$\ell_{i}$' for i in range(lengthscale.shape[-1])]
             
             plot_trajectory(axes[1,2], K, np.hstack((lengthscale, outputscale, noise)), 
                             xlabel='Iterations', ylabel='Measures', 
-                            labels=[*length_scale_labels, '$\sigma^{2}_{f}$', '$\sigma^{2}_{n}$'])
+                            labels=[*length_scale_labels, r'$\sigma^{2}_{f}$', r'$\sigma^{2}_{n}$'])
             
         elif 'DI' in self.acquisition:
             # Plot XY (x = descriptors)

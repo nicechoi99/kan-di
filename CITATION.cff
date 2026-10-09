@@ -21,8 +21,8 @@ abstract: >-
   descriptors at the same time. Descriptor importance is the average
   gradient energy (AGE), the squared partial derivative of the closed-form
   KAN response averaged over the candidate pool.
-version: 1.0.1
-date-released: 2026-10-05
+version: 1.0.2
+date-released: 2026-10-09
 license: MIT
 repository-code: "https://github.com/nicechoi99/kan-di"
 doi: 10.5281/zenodo.22652792
