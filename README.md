@@ -19,6 +19,23 @@ descriptors, and to spread measurements along the leading one.
 The paper calls the full framework **KAN-DoE**. **KAN-DI** is its discriminative composite
 acquisition, and the variant reported in the paper is `DI-UCB-H`. This repository implements both.
 
+## How KAN-DI works, in one figure
+
+<p align="center">
+  <img src="docs/img/kan_gp_prior.png" alt="KAN pruning cascade, its coupling to the GP prior, and comparison with other feature-selecting surrogates" width="100%">
+</p>
+
+**a)** A full KAN with five inputs and all edges active. **b)** Node pruning removes the hidden node
+whose outgoing activations fall below the threshold θ. **c)** Edge pruning masks the edges whose
+attribution falls below θ, and inputs whose edges are all masked become inactive. **d)** The pruned
+network (here two active descriptors) supplies the GP prior mean `m(x) = f_KAN(x)`, while the GP kernel
+spans all inputs with ARD lengthscales; right, GP posteriors with a zero prior mean and with the KAN
+prior mean on AutoAM (10 training points) and dilute-solute diffusion (40 training points). **e)** Why a
+KAN as the prior: it selects descriptors by pruning, like Lasso or a tree, and stays smooth and
+nonlinear, like an MLP. The descriptor ranking (AGE) is read from the derivatives of `f_KAN`, and the
+composite acquisition `α(x) = I_e(x) + I_d(x) + I_u(x)` uses it to choose the next experiment (see
+**How it works**). This is Supplementary Fig. S1 of the paper.
+
 ## Try it
 
 Three ways to rank the descriptors of a table of experiments you have already run (details under
