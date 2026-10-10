@@ -781,7 +781,9 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
         return fig, axes
     
     
-    def run(self, post_iteration=10, verbose=True):
+    def run(self, post_iteration=10, verbose=True, stop_at_target=False):
+        # stop_at_target ends the run at the first proposal above y_subopt; the iterations up to it are
+        # unchanged, so iterations-to-target is the same as in a full run (used by analyze.py's replay)
         df = self.df
         indices_initial = self.indices_initial
         indices_sampled = deepcopy(indices_initial)
@@ -837,6 +839,8 @@ class DiscreteBO:  #! convert df to solve maximization problem if necessary
             idx_prev = idx_next
             
             # Terminate
+            if stop_at_target and y_next > self.y_subopt:
+                break
             if self.y_max > self.y_subopt:
                 counter += 1
             

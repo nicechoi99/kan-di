@@ -1,18 +1,24 @@
-# Example dataset
+# Worked example: AutoAM
 
-`example_dataset.csv` is synthetic, so the answer is known. Six descriptors are recorded for 150
-experiments, but the yield depends only on `temperature` (a peak near 108 °C) and `amine_ratio`
-(monotone); `pressure`, `time`, `stir_rate` and `batch` do not enter it. Gaussian noise (sd 2) is added.
+The example uses AutoAM, the smallest of the paper's benchmark pools (`dat/small_feature/AutoAM.csv`;
+source and license in `dat/README.md`). It records 100 extrusion prints from an autonomous additive
+manufacturing study. The four printer settings `Prime Delay`, `Print Speed`, `X Offset Correction` and
+`Y Offset Correction` are the descriptors, and the print-quality `Score` is the response (higher is
+better). The values are already scaled to `[0.1, 0.9]`, as in the paper.
 
 ```bash
-python analyze.py examples/example_dataset.csv --target yield              # descriptor importance
-python analyze.py examples/example_dataset.csv --target yield --simulate   # + campaign replay
+python analyze.py dat/small_feature/AutoAM.csv --target Score                       # descriptor importance
+python analyze.py dat/small_feature/AutoAM.csv --target Score --simulate --seeds 3  # + campaign replay
 ```
 
-A correct analysis ranks `temperature` and `amine_ratio` first and gives the other four no measurable
-gradient energy. On this table `temperature` carries most of the gradient energy: the peak is steep,
-while the `amine_ratio` effect is monotone and shallow, and AGE measures squared slope, not effect size.
+The paper finds that the two offset corrections lead on this pool. `analyze.py` should rank them
+first and second, with `Prime Delay` and `Print Speed` well behind.
 
-On this table the KAN fits better without the log transform of its inputs (held-out R² 0.97 against
-0.09 with it), so `--log-inputs auto` selects `none`. With the log transform the expression fits
-poorly and the ranking is unreliable, which the report flags.
+The campaign replay takes `Score` above 0.82 (the top 10% of the scaled range) as the target and
+counts KAN-DI and ZERO-EI iterations from the same random initial designs the paper uses. Over ten
+seeds the paper reports a median of 5 iterations for KAN-DI (`DI-UCB-H`) and 32 for ZERO-EI on this
+pool. `benchmark/main.py --dataset small_feature --data AutoAM --methods KAN:DI-UCB-H,ZERO:EI`
+reruns that comparison.
+
+The same example runs in Colab (`kan_di_colab.ipynb`) and in the web app (`app/streamlit_app.py`,
+"Use the AutoAM benchmark pool").

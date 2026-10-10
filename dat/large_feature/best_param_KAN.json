@@ -1,0 +1,7 @@
+{
+ "lamb": 0.01,
+ "lamb_coef": 0.01,
+ "lamb_coefdiff": 0.1,
+ "lamb_entropy": 0.01,
+ "pruning_th": 0.1
+}

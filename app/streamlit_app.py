@@ -81,11 +81,11 @@ def main():
         'closed-form expression, and each descriptor is scored by its average gradient energy (AGE) under '
         'that expression. This is the same analysis as `analyze.py`.')
 
-    use_example = st.sidebar.checkbox('Use the bundled example dataset', value=False,
-                                      help='Synthetic: yield depends only on temperature and amine_ratio.')
+    use_example = st.sidebar.checkbox('Use the AutoAM benchmark pool', value=False,
+                                      help="The paper's AutoAM pool (100 prints, 4 printer settings, response Score).")
     up = st.sidebar.file_uploader('Table of experiments (CSV or Excel)', type=['csv', 'xlsx', 'xls'])
     if use_example:
-        df = pd.read_csv(os.path.join(ROOT, 'examples', 'example_dataset.csv'))
+        df = pd.read_csv(os.path.join(ROOT, 'dat', 'small_feature', 'AutoAM.csv'))
     elif up is not None:
         try:
             df = read_upload(up.name, up.getvalue())
@@ -93,7 +93,7 @@ def main():
             st.error('Could not read the file: %s' % e)
             return
     else:
-        st.info('Upload a CSV or Excel file in the sidebar, or tick "Use the bundled example dataset".')
+        st.info('Upload a CSV or Excel file in the sidebar, or tick "Use the AutoAM benchmark pool".')
         return
 
     st.subheader('Data')

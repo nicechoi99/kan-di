@@ -63,18 +63,48 @@ def load_results(dataset_name, combinations, force=False):
         return df
     
     
+def read_pool_csv(filedir, data_name):
+    """Read a released BO pool (dat/<group>/<name>.csv) into the frame layout the BO loop expects.
+
+    The CSV holds the preprocessed pool used in the paper: inputs and objective already scaled to
+    [0.1, 0.9], duplicates averaged, and the objective sign set so that larger is better. The last
+    column is the objective. dat/<group>/embedding/<name>.csv holds the 2-D t-SNE coordinates used
+    only by the monitoring plots; without it the first two inputs stand in.
+    """
+    df = pd.read_csv(filedir, encoding='utf-8', float_precision='round_trip')
+    feature_name, objective_name = list(df.columns[:-1]), df.columns[-1]
+    X = df[feature_name].to_numpy(float)
+    df['X'] = [row for row in X]
+    df['Y'] = df[objective_name].astype(float)
+    embfile = os.path.join(os.path.dirname(filedir), 'embedding', os.path.basename(filedir))
+    if os.path.exists(embfile):
+        Z = pd.read_csv(embfile).to_numpy(float)
+        df.attrs['embedder'] = 'tSNE'
+    else:
+        Z = X[:, :2]
+        df.attrs['embedder'] = 'none'
+    df['Z'] = [row for row in Z]
+    df.attrs['data_name'] = data_name
+    return df
+
+
+def _load_one(_dir, data_name):
+    # a local preprocessed pickle takes precedence; the released CSV pool is the fallback
+    filedir = os.path.join(datadir, _dir, 'data_' + data_name + '.pkl')
+    if os.path.exists(filedir):
+        return pd.read_pickle(filedir)
+    return read_pool_csv(os.path.join(datadir, _dir, data_name + '.csv'), data_name)
+
+
 def load_dataset(dataset_name, data_name=None):
     _dir = _resolve_dir(dataset_name)
     if data_name and type(data_name) == str:  # single data
-        filedir = os.path.join(datadir, _dir, 'data_' + data_name + '.pkl')
-        df = pd.read_pickle(filedir)
-        return df
+        return _load_one(_dir, data_name)
     else:
         datasets = {}
         for data_name in DATASET[dataset_name]:
-            filedir = os.path.join(datadir, _dir, 'data_' + data_name + '.pkl')
-            df = pd.read_pickle(filedir)
-            
+            df = _load_one(_dir, data_name)
+
             df.attrs['data_name'] = data_name
             datasets[data_name] = df
         return datasets

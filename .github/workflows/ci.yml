@@ -33,7 +33,7 @@ jobs:
           pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
 
-      - name: Smoke test (imports, eval_func, analyze.py on the example dataset)
+      - name: Smoke test (imports, eval_func, benchmark pools, paper results, analyze.py on AutoAM)
         run: python tests/smoke_test.py
 
       - name: Upload analyze.py output

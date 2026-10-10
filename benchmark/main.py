@@ -1,5 +1,6 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'common'))
+import json
 import traceback
 
 import numpy as np
@@ -22,45 +23,46 @@ def run_BO(inputs, params=None, i=None):
     prefix = data_name + '_' + m + '_' + acquisition
     filedir = os.path.join(datadir, dataset_name, 'temp', prefix + '_' + str(seed) + '.pkl')
     
-    # try:
-    cprint('Running case for', filedir)
-    df = datasets[data_name]
-    y = df['Y'].values
-    y_subopt = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
-    indices_initial = get_random_indices(y=y, lower=0.5, n_sample=n_initial, seed=seed)
-    hyperparams = hyperparams_map.get(m)
-    imgoutdir = os.path.join(imgdir, dataset_name, prefix, str(seed))
-    
-    agent = DiscreteBO(
-        dataset_name, df, indices_initial=indices_initial, x_range=FEATURE_RANGE, y_range=OUTPUT_RANGE,
-        m=m, kernel='GP', acquisition=acquisition, y_subopt=y_subopt, hyperparams=hyperparams, 
-        draw=draw, showfig=showfig, savefig=savefig, imgoutdir=imgoutdir, parallel=parallel
-    )
-    
-    log = agent.run(verbose=verbose)
-    
-    cprint('Job', filedir, 'done.', color='g')
-    log['data_name'] = data_name
-    log['seed'] = seed
-    log['m'] = m
-    log['acquisition'] = acquisition
+    try:
+        cprint('Running case for', filedir)
+        df = datasets[data_name]
+        y = df['Y'].values
+        y_subopt = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
+        indices_initial = get_random_indices(y=y, lower=0.5, n_sample=n_initial, seed=seed)
+        hyperparams = hyperparams_map.get(m)
+        imgoutdir = os.path.join(imgdir, dataset_name, prefix, str(seed))
         
-    # except Exception as e:
-    #     cprint('Job', filedir, 'has been terminated with error.', color='y')
-    #     error_info = {
-    #         '__error__': True,
-    #         'data_name': data_name,
-    #         'seed': seed,
-    #         'm': m,
-    #         'acquisition': acquisition,
-    #         'error_type': type(e).__name__,
-    #         'error_msg': str(e),
-    #         'traceback': traceback.format_exc(),
-    #     }
-    #     log = pd.DataFrame.from_records([error_info])
+        agent = DiscreteBO(
+            dataset_name, df, indices_initial=indices_initial, x_range=FEATURE_RANGE, y_range=OUTPUT_RANGE,
+            m=m, kernel='GP', acquisition=acquisition, y_subopt=y_subopt, hyperparams=hyperparams, 
+            draw=draw, showfig=showfig, savefig=savefig, imgoutdir=imgoutdir, parallel=parallel
+        )
+        
+        log = agent.run(verbose=verbose)
+        
+        cprint('Job', filedir, 'done.', color='g')
+        log['data_name'] = data_name
+        log['seed'] = seed
+        log['m'] = m
+        log['acquisition'] = acquisition
+        
+    except Exception as e:
+        cprint('Job', filedir, 'has been terminated with error.', color='y')
+        error_info = {
+            '__error__': True,
+            'data_name': data_name,
+            'seed': seed,
+            'm': m,
+            'acquisition': acquisition,
+            'error_type': type(e).__name__,
+            'error_msg': str(e),
+            'traceback': traceback.format_exc(),
+        }
+        log = pd.DataFrame.from_records([error_info])
     
-    # # Save
-    # log.to_pickle(filedir)
+    # Save
+    os.makedirs(os.path.dirname(filedir), exist_ok=True)
+    log.to_pickle(filedir)
     return log
 
 
@@ -83,26 +85,33 @@ def handle_file(m, acquisition, dataset_name, data_name, seed, force=False):
     return []
 
 
-def run_BO_all():
+def load_kan_hyperparams(dataset_name):
+    """KAN sparsity settings selected for the group (dat/<group>/best_param_KAN.json; a local .pkl wins)."""
+    pkl = os.path.join(datadir, dataset_name, 'best_param_KAN.pkl')
+    if os.path.exists(pkl):
+        return load(pkl)
+    with open(os.path.join(datadir, dataset_name, 'best_param_KAN.json')) as f:
+        return json.load(f)
+
+
+def run_BO_all(dataset_name='large_feature', data_names=None, n_seed=10, combinations=None, draw=False,
+               force=False):
     # BO agent parameters
     n_initial = 10
-    n_seed = 10
     verbose = False  # whether to inspect training process, resulting functions, etc.
-    draw = True  # whether to display the monitoring panel on the fly (#!you can generate fig from the log and then save)
     showfig = False  # whether to show the monitoring panel
-    savefig = True  # whether to save the monitoring panel
-    force = False  # whether to force re-run even if the result file exists 
+    savefig = True  # whether to save the monitoring panel (only when draw=True)
+    combinations = COMBINATIONS if combinations is None else combinations
     
     # Parallel configuration
     parallel = False
     debug = False  # debugging for parallel=True mode
     target = 'local'  # choose between 'local' and 'dist'
     
-    # Run Bayesian optimization with the target prior/acquisition function combination
-    dataset_name = 'large_feature'
-    
     # Load datasets
     datasets = load_dataset(dataset_name)
+    if data_names:
+        datasets = {k: datasets[k] for k in data_names}
         
     # Normalize combinations to upper-case
     data_names = list(datasets.keys())
@@ -112,7 +121,7 @@ def run_BO_all():
     
     # Define entire jobs
     jobs = []
-    for m, acquisition in COMBINATIONS:
+    for m, acquisition in combinations:
         for data_name in data_names:
             for seed in seeds:
                 job = (m, acquisition, data_name, seed)
@@ -125,14 +134,23 @@ def run_BO_all():
     hyperparams_map = {}
     for m in unique_m:
         if m == 'KAN':
-            hyperparams_map['KAN'] = load(os.path.join(datadir, dataset_name, 'best_param_KAN.pkl'))
+            hyperparams_map['KAN'] = load_kan_hyperparams(dataset_name)
         else:
             hyperparams_map[m] = None
 
     params = (dataset_name, datasets, hyperparams_map, n_initial, draw, showfig, savefig, parallel, verbose)
 
     # Run all jobs; per-job caching in run_BO makes re-runs cheap
-    logs = parallel_eval(run_BO, jobs, params=params, target=target, parallel=parallel, debug=debug)
+    parallel_eval(run_BO, jobs, params=params, target=target, parallel=parallel, debug=debug)
+    
+    # Return every requested run, including the ones cached from earlier calls
+    logs = []
+    for m, acquisition in combinations:
+        for data_name in data_names:
+            for seed in seeds:
+                filedir = os.path.join(datadir, dataset_name, 'temp', f'{data_name}_{m}_{acquisition}_{seed}.pkl')
+                if os.path.exists(filedir):
+                    logs.append(pd.read_pickle(filedir))
     return logs
 
 
@@ -157,7 +175,7 @@ def KAN_BO_test():
     y = df['Y'].values
     y_subopt = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
     indices_initial = get_random_indices(y=y, lower=0.5, n_sample=n_initial, seed=seed)
-    hyperparams = load(os.path.join(datadir, dataset_name, 'best_param_KAN.pkl'))
+    hyperparams = load_kan_hyperparams(dataset_name)
     
     prefix = data_name + '_' + m + '_' + acquisition
     imgoutdir = os.path.join(imgdir, dataset_name, prefix, str(seed))
@@ -172,9 +190,37 @@ def KAN_BO_test():
     return log
 
 
+def summarize(logs):
+    """Median iterations to the target per pool and method, counted as in the paper."""
+    y_subopt = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
+    rows = []
+    for log in logs:
+        if '__error__' in log.columns:
+            continue
+        hit = log[log['y_next'] > y_subopt].sort_values('k')
+        rows.append({'data_name': log['data_name'].iloc[0], 'method': log['m'].iloc[0] + '-' + log['acquisition'].iloc[0],
+                     'seed': log['seed'].iloc[0], 'iterations': int(hit['k'].iloc[0]) if len(hit) else np.nan})
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    return df.groupby(['data_name', 'method'])['iterations'].agg(['median', 'count']).reset_index()
+
+
 if __name__ == '__main__':
-    # log = KAN_BO_test()
-    
-    logs = run_BO_all()
-    
-    a = 1
+    import argparse
+    ap = argparse.ArgumentParser(description='Benchmark sweep of the paper on the pools under dat/.')
+    ap.add_argument('--dataset', default='large_feature', choices=sorted(DATASET),
+                    help='pool group (default: large_feature)')
+    ap.add_argument('--data', default=None, help='comma-separated pool names, e.g. AutoAM or MOF_Td (default: all)')
+    ap.add_argument('--seeds', type=int, default=10, help='random initial designs per method (default: 10)')
+    ap.add_argument('--methods', default=None,
+                    help='comma-separated prior:acquisition pairs, e.g. KAN:DI-UCB-H,ZERO:EI (default: all in config)')
+    ap.add_argument('--draw', action='store_true', help='save the monitoring panel of every iteration under img/')
+    ap.add_argument('--force', action='store_true', help='rerun jobs whose result file already exists')
+    args = ap.parse_args()
+    combos = [tuple(c.split(':')) for c in args.methods.split(',')] if args.methods else None
+    names = args.data.split(',') if args.data else None
+    logs = run_BO_all(args.dataset, names, args.seeds, combos, draw=args.draw, force=args.force)
+    table = summarize(logs)
+    if table is not None:
+        print(table.to_string(index=False))

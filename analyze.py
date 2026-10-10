@@ -18,7 +18,7 @@ on/off fixes it instead).
 
     python analyze.py data.csv --target yield
     python analyze.py data.csv --target yield --features T,P,ratio --simulate --seeds 5
-    python analyze.py examples/example_dataset.csv --target yield --simulate
+    python analyze.py dat/small_feature/AutoAM.csv --target Score --simulate
 
 The iteration counts are a replay on the rows you supply, so they describe this pool, not experiments
 you have not run. Results go to <out>/ (default: results_<file name>/): report.txt,
@@ -277,9 +277,15 @@ def analyze(table, target, features=None, minimize=False, fits=3, log_inputs='au
         rows = []
         for seed in range(seeds):
             for method, m, acq, h in [('KAN-DI', 'KAN', 'DI-UCB-H', hp), ('ZERO-EI', 'ZERO', 'EI', None)]:
-                k = converged_at(run_one(m, acq, h, df, y_target, n_initial, seed), y_target)
-                rows.append({'seed': seed, 'method': method, 'iterations_to_target': k})
-                log('  seed %d  %-7s  %s' % (seed, method, k if k is not None else 'not reached'))
+                # a run whose acquisition turns non-finite raises in models.eval_DI; the paper's sweep
+                # marked such runs __error__ and reran them, so here the seed is recorded as failed
+                try:
+                    k, err = converged_at(run_one(m, acq, h, df, y_target, n_initial, seed, stop_at_target=True), y_target), None
+                except Exception as e:
+                    k, err = None, '%s: %s' % (type(e).__name__, e)
+                rows.append({'seed': seed, 'method': method, 'iterations_to_target': k, 'error': err})
+                log('  seed %d  %-7s  %s' % (seed, method, ('failed (%s)' % err) if err else
+                                             (k if k is not None else 'not reached')))
         sim = pd.DataFrame(rows)
         if out is not None:
             sim.to_csv(os.path.join(out, 'campaign_replay.csv'), index=False)
@@ -287,9 +293,12 @@ def analyze(table, target, features=None, minimize=False, fits=3, log_inputs='au
                   'Campaign replay: %d initial experiments drawn from the lower half of the response range; '
                   'target = top 10%% of the range (%d of %d rows qualify)' % (n_initial, n_above, len(df))]
         for method in ('KAN-DI', 'ZERO-EI'):
-            v = sim.loc[sim.method == method, 'iterations_to_target'].dropna().to_numpy(float)
-            lines.append('  %-7s median %s iterations to the target (%d of %d seeds reached it)'
-                         % (method, ('%.0f' % np.median(v)) if len(v) else 'n/a', len(v), seeds))
+            sm = sim[sim.method == method]
+            v = sm['iterations_to_target'].dropna().to_numpy(float)
+            n_fail = int(sm['error'].notna().sum())
+            lines.append('  %-7s median %s iterations to the target (%d of %d seeds reached it%s)'
+                         % (method, ('%.0f' % np.median(v)) if len(v) else 'n/a', len(v), seeds,
+                            ', %d failed' % n_fail if n_fail else ''))
         lines.append('  (a replay on the rows supplied: it describes this pool, not experiments you have not run)')
 
     report = '\n'.join(lines)

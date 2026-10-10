@@ -113,7 +113,7 @@ def final_ranking(log):
     return list(np.argsort(-np.nan_to_num(lam))), lam
 
 
-def run_one(m, acquisition, hyperparams, df, y_subopt, n_initial, seed):
+def run_one(m, acquisition, hyperparams, df, y_subopt, n_initial, seed, stop_at_target=False):
     indices_initial = get_random_indices(y=df['Y'].values, lower=0.5, n_sample=n_initial, seed=seed)
     agent = DiscreteBO(
         df.attrs['data_name'], df, indices_initial=indices_initial,
@@ -122,7 +122,7 @@ def run_one(m, acquisition, hyperparams, df, y_subopt, n_initial, seed):
         hyperparams=hyperparams,
         draw=False, showfig=False, savefig=False, parallel=False,
     )
-    return agent.run(verbose=False)
+    return agent.run(verbose=False, stop_at_target=stop_at_target)
 
 
 def main():

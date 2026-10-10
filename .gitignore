@@ -1,5 +1,4 @@
-# Data & large artifacts (not distributed)
-dat/
+# Data & large artifacts (not distributed; the benchmark pools under dat/ are, see the end)
 data/
 *.pkl
 *.npy
@@ -42,8 +41,13 @@ Thumbs.db
 results_*/
 ci_out/
 
-# Shipped with the repository: README figures and the example dataset
+# Shipped with the repository: README figures and the paper's benchmark pools
 !docs/img/
 !docs/img/*.png
 !docs/img/*.svg
-!examples/example_dataset.csv
+!dat/*/*.csv
+!dat/*/embedding/*.csv
+!dat/README.md
+!dat/*/best_param_KAN.json
+!paper_runs/
+!paper_runs/*.csv

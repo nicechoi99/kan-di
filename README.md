@@ -56,8 +56,10 @@ the released code does on one seed, not a result from the paper.
   discrimination between the two leading descriptors, and uniform coverage of the leading one.
 - **Discrete candidate pools.** The loop selects the next experiment from a fixed table of candidates,
   as in a screening study.
-- **Runs out of the box.** `benchmark/quickstart.py` needs no downloaded data, and `analyze.py` runs on
-  your own table of experiments.
+- **Runs out of the box.** The nine benchmark pools of the paper ship under `dat/` and the paper's
+  run records under `paper_runs/`, so `benchmark/paper_results.py` recomputes the reported numbers and
+  `benchmark/main.py` reruns the sweep without a download. `analyze.py` runs on any table of
+  experiments, the bundled pools included.
 
 ## Installation
 
@@ -111,15 +113,20 @@ to resolve, so the quickstart neither converges faster than a zero-mean GP
 the padded inputs cleanly. It is a check that the implementation runs and produces
 the expected quantities, not a reproduction of the paper's results. The sample
 efficiency and descriptor-recovery claims are made on the nine curated datasets,
-which have concentrated importance and are obtained as described under
-**Data availability** below.
+which have concentrated importance and ship with the repository under `dat/`
+(see **Data availability** below).
 
-To reproduce the paper's sweep once the datasets are in place:
+To rerun the paper's sweep on those pools:
 
 ```bash
 cd benchmark
-python main.py
+python main.py --dataset small_feature --data AutoAM --methods KAN:DI-UCB-H,ZERO:EI --seeds 10
+python main.py                               # all methods, all high-dimensional pools, 10 seeds
 ```
+Each run is saved under `dat/<group>/temp/` and skipped on the next call (`--force` reruns it), and
+the median iterations to the target per pool and method are printed at the end. A rerun reproduces the
+paper's numbers as distributions over seeds, not seed by seed (see **Run-to-run variability**); the
+paper's own runs are in `paper_runs/` (see **Results reported in the paper**).
 Convergence is the first BO iteration whose proposal exceeds `y > y_0.9*`, with
 `y_0.9* = 0.82` in the `[0.1, 0.9]`-scaled objective.
 
@@ -161,26 +168,23 @@ scaled to `[0.1, 0.9]`, as in the paper.
 **Output** (in `results_<file name>/`, or `--out`): `report.txt`, `descriptor_importance.csv`,
 `campaign_replay.csv` (with `--simulate`) and `summary.png`.
 
-**Worked example with a known answer.** `examples/example_dataset.csv` is synthetic: 150 experiments,
-six descriptors, but the yield depends only on `temperature` (a peak) and `amine_ratio` (monotone);
-`pressure`, `time`, `stir_rate` and `batch` do not enter it (see `examples/README.md`).
+**Worked example: AutoAM.** The smallest of the paper's pools, `dat/small_feature/AutoAM.csv`, records
+100 extrusion prints with four printer settings and a print-quality `Score` (see `examples/README.md`).
 
 ```bash
-python analyze.py examples/example_dataset.csv --target yield --simulate --seeds 1
+python analyze.py dat/small_feature/AutoAM.csv --target Score
 ```
 
 <p align="center">
-  <img src="docs/img/analyze_example.png" alt="analyze.py output on the example dataset" width="75%">
+  <img src="docs/img/analyze_example.png" alt="analyze.py descriptor importance on the AutoAM pool" width="60%">
 </p>
 
-On this table `--log-inputs auto` selected no transform (held-out R² 0.97 against 0.09 with the log
-transform), and the three expressions fit the rows with R² 0.96–0.98. **a)** `temperature` and
-`amine_ratio` are ranked first and second; the four inputs that do not enter the response receive no
-measurable gradient energy (bars are the mean over three KAN fits, error bars one standard deviation).
-`amine_ratio` holds 1.7% of the gradient energy because AGE measures squared slope, and its monotone
-effect is shallow next to the temperature peak. **b)** In this single-seed replay, ZERO-EI reached the
-target in 3 iterations and KAN-DI in 6. One seed on a 150-row pool says little about either method;
-use `--seeds` of 5 or more and compare the distributions.
+`--log-inputs auto` selected the log transform the paper uses (held-out R² 0.69 against 0.36 without
+it), and the three expressions fit the rows with R² 0.58–0.60. **a)** `X Offset Correction` (43%) and
+`Y Offset Correction` (42%) lead, with `Prime Delay` and `Print Speed` behind; the paper identifies the
+same leading pair on AutoAM. Bars are the mean over three KAN fits, error bars one standard deviation.
+Adding `--simulate --seeds 5` replays KAN-DI and ZERO-EI campaigns on the pool; the paper's own runs on
+AutoAM are in `paper_runs/` (median 5 iterations for KAN-DI against 32 for ZERO-EI).
 
 ## How it works
 
@@ -237,6 +241,20 @@ The acquisition functions differ in several components, so this comparison does 
 isolate the discriminative term. Full results are in the paper and its
 Supplementary Information.
 
+**Run records.** Every proposal of the paper's benchmark runs (9 pools × 9 methods × 10 seeds) is in
+`paper_runs/`, and `benchmark/paper_results.py` recomputes the paper's numbers from them:
+
+```bash
+cd benchmark
+python paper_results.py                                            # all pools and methods
+python paper_results.py --data AutoAM,MOF_Td --methods KAN-DI-UCB-H,ZERO-EI,KAN-EI
+python paper_results.py --per-seed --data AutoAM                   # one row per seed
+```
+Each row of `paper_runs/bo_runs_<group>.csv` is one iteration of one run: the chosen candidate
+(`pool_row`, a row of `dat/<group>/<pool>.csv`), its objective, the acquisition value and, for the DI
+acquisitions, the terms `I_e`, `I_d`, `I_u` and the two leading descriptors. Runs that ended in an error
+were left out in the paper, so a few methods have fewer than 10 seeds; the output counts them.
+
 **Run-to-run variability.** These numbers are the paper's runs, not a guaranteed
 output of `main.py`. The KAN is reduced to a closed-form expression by pruning and
 symbolic fitting, and that step can select different descriptors when the fitted
@@ -261,7 +279,9 @@ software environments. Compare distributions over seeds rather than single runs.
 
 ## Data availability
 
-Datasets are **not** distributed here.
+The nine benchmark pools are distributed under `dat/`, preprocessed exactly as in the paper
+(`dat/README.md` lists the preprocessing, the sources and their licenses; cite the sources if you use
+them). The amine-screening campaign data are not part of this release.
 
 - **Low-dimensional benchmarks** (d = 3–5; AgNP, AutoAM, P3HT, Perovskite,
   Crossed barrel) are the public sets compiled by Liang et al.,
@@ -275,7 +295,8 @@ Datasets are **not** distributed here.
 - **Synthetic benchmarks** (Rastrigin, Hartmann-6, Griewank, Rosenbrock, Ackley)
   are generated analytically in `common/datamanager.py:gen_benchmark_functions`.
 
-Place datasets under `dat/<group>/` as expected by `datamanager.load_dataset`.
+`datamanager.load_dataset` reads `dat/<group>/<name>.csv`; a preprocessed `data_<name>.pkl` in the
+same folder takes precedence if present.
 
 ## Repository layout
 
@@ -295,13 +316,20 @@ common/                  Core framework
   kan/                     self-contained KAN implementation (custom.py, LBFGS.py, ...)
 benchmark/
   quickstart.py            self-contained example; needs no downloaded data
-  main.py                  the paper's benchmark sweep; needs the datasets under dat/
+  main.py                  the paper's benchmark sweep on the pools under dat/
+  paper_results.py         the paper's convergence numbers, recomputed from paper_runs/
+paper_runs/
+  bo_runs_small_feature.csv, bo_runs_large_feature.csv
+                           every proposal of the paper's benchmark runs
+dat/
+  small_feature/, large_feature/
+                           the nine benchmark pools (CSV), their t-SNE coordinates and the KAN settings
+  README.md                preprocessing, sources and licenses
 examples/
-  example_dataset.csv      synthetic table with a known answer, for analyze.py
-  README.md                how the example was built and what a correct analysis shows
-  kan_di_colab.ipynb       Colab notebook: install, run the example, upload your own table
+  README.md                the AutoAM worked example and what it shows
+  kan_di_colab.ipynb       Colab notebook: install, run on AutoAM, upload your own table
 tests/
-  smoke_test.py            fast check run by CI: imports, eval_func, analyze.py on the example
+  smoke_test.py            fast check run by CI: imports, eval_func, the pools, analyze.py on AutoAM
 .github/workflows/ci.yml   CI: CPU install + smoke test on every push and pull request
 docs/
   make_readme_figures.py   regenerates docs/img/example_run.png from one quickstart run
