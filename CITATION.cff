@@ -6,12 +6,18 @@ authors:
   - given-names: Jaehyeong
     family-names: Choi
     affiliation: "Korea Institute of Science and Technology; Korea University"
+  - given-names: Damdae
+    family-names: Park
+    affiliation: "Chungnam National University"
+    email: damdaepark@cnu.ac.kr
   - given-names: Kyeongsu
     family-names: Kim
     affiliation: "Korea Institute of Science and Technology"
+    email: kyeongsu@kist.re.kr
   - given-names: Ung
     family-names: Lee
-    affiliation: "Korea Institute of Science and Technology"
+    affiliation: "Sogang University"
+    email: ulee@sogang.ac.kr
 abstract: >-
   Reference implementation of KAN-DI, the acquisition at the core of the
   KAN-DoE framework. Bayesian optimization uses a pruned Kolmogorov–Arnold
@@ -21,8 +27,8 @@ abstract: >-
   descriptors at the same time. Descriptor importance is the average
   gradient energy (AGE), the squared partial derivative of the closed-form
   KAN response averaged over the candidate pool.
-version: 1.0.2
-date-released: 2026-10-09
+version: 1.1.0
+date-released: 2026-10-10
 license: MIT
 repository-code: "https://github.com/nicechoi99/kan-di"
 doi: 10.5281/zenodo.22652792
