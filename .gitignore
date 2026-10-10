@@ -37,3 +37,12 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# analyze.py output folders
+results_*/
+
+# Shipped with the repository: README figures and the example dataset
+!docs/img/
+!docs/img/*.png
+!docs/img/*.svg
+!examples/example_dataset.csv
