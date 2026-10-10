@@ -7,8 +7,8 @@ manufacturing study. The four printer settings `Prime Delay`, `Print Speed`, `X 
 better). The values are already scaled to `[0.1, 0.9]`, as in the paper.
 
 ```bash
-python analyze.py dat/small_feature/AutoAM.csv --target Score                       # descriptor importance
-python analyze.py dat/small_feature/AutoAM.csv --target Score --simulate --seeds 3  # + campaign replay
+python analyze.py dat/small_feature/AutoAM.csv --target Score --log-inputs on                       # descriptor importance
+python analyze.py dat/small_feature/AutoAM.csv --target Score --log-inputs on --simulate --seeds 3  # + campaign replay
 ```
 
 The paper finds that the two offset corrections lead on this pool. `analyze.py` should rank them

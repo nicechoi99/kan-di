@@ -172,15 +172,16 @@ scaled to `[0.1, 0.9]`, as in the paper.
 100 extrusion prints with four printer settings and a print-quality `Score` (see `examples/README.md`).
 
 ```bash
-python analyze.py dat/small_feature/AutoAM.csv --target Score
+python analyze.py dat/small_feature/AutoAM.csv --target Score --log-inputs on
 ```
 
 <p align="center">
   <img src="docs/img/analyze_example.png" alt="analyze.py descriptor importance on the AutoAM pool" width="60%">
 </p>
 
-`--log-inputs auto` selected the log transform the paper uses (held-out R² 0.69 against 0.36 without
-it), and the three expressions fit the rows with R² 0.58–0.60. **a)** `X Offset Correction` (43%) and
+`--log-inputs on` fixes the log transform the paper uses. With 100 rows the held-out comparison behind
+`--log-inputs auto` depends on the split and can pick either setting on different machines, so the
+example fixes it. The three expressions fit the rows with R² 0.58–0.60. **a)** `X Offset Correction` (43%) and
 `Y Offset Correction` (42%) lead, with `Prime Delay` and `Print Speed` behind; the paper identifies the
 same leading pair on AutoAM. Bars are the mean over three KAN fits, error bars one standard deviation.
 Adding `--simulate --seeds 5` replays KAN-DI and ZERO-EI campaigns on the pool; the paper's own runs on
