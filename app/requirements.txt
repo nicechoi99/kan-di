@@ -1,0 +1,18 @@
+# Dependencies for Streamlit Community Cloud (it reads the requirements file next to the entry point).
+# Same pins as ../requirements.txt, with the CPU build of PyTorch, plus the app extras of
+# ../requirements-app.txt. Keep the pins in sync with ../requirements.txt.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+numpy==2.0.2
+pandas==2.2.3
+scipy==1.13.1
+sympy==1.13.1
+matplotlib==3.9.2
+tqdm==4.67.1
+PyYAML==6.0.2
+dill==0.4.0
+gpytorch==1.13
+linear-operator==0.5.3
+scikit-learn==1.6.1
+streamlit>=1.38,<2
+openpyxl>=3.1

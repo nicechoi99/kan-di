@@ -1,5 +1,7 @@
 # KAN-DI: Discriminative Bayesian Optimization with a Kolmogorov–Arnold Prior
 
+[![CI](https://github.com/nicechoi99/kan-di/actions/workflows/ci.yml/badge.svg)](https://github.com/nicechoi99/kan-di/actions/workflows/ci.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicechoi99/kan-di/blob/main/examples/kan_di_colab.ipynb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22652792.svg)](https://doi.org/10.5281/zenodo.22652792)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
@@ -16,6 +18,21 @@ descriptors, and to spread measurements along the leading one.
 
 The paper calls the full framework **KAN-DoE**. **KAN-DI** is its discriminative composite
 acquisition, and the variant reported in the paper is `DI-UCB-H`. This repository implements both.
+
+## Try it
+
+Three ways to rank the descriptors of a table of experiments you have already run (details under
+[Analyze your own data](#analyze-your-own-data)):
+
+| | How | Install |
+|---|---|---|
+| **Colab** | [Open the notebook](https://colab.research.google.com/github/nicechoi99/kan-di/blob/main/examples/kan_di_colab.ipynb), run the example, then upload your CSV | none |
+| **Web app** | `pip install -r requirements.txt -r requirements-app.txt`, then `streamlit run app/streamlit_app.py` | local |
+| **Command line** | `python analyze.py data.csv --target yield` | local, see [Installation](#installation) |
+
+The web app runs the same analysis as `analyze.py` (it calls `analyze.analyze`). To host it, deploy
+the repository on [Streamlit Community Cloud](https://streamlit.io/cloud) with `app/streamlit_app.py` as
+the entry point and Python 3.12; the CPU dependencies are in `app/requirements.txt`.
 
 <p align="center">
   <img src="docs/img/example_run.png" alt="One KAN-DI run on Hartmann-6 padded with four irrelevant inputs" width="100%">
@@ -263,7 +280,11 @@ Place datasets under `dat/<group>/` as expected by `datamanager.load_dataset`.
 ## Repository layout
 
 ```
-analyze.py               descriptor importance (+ optional campaign replay) for your own table
+analyze.py               descriptor importance (+ optional campaign replay) for your own table;
+                         also importable: analyze.analyze(table, target, ...)
+app/
+  streamlit_app.py         web app: upload a table, pick columns, run analyze.analyze
+  requirements.txt         CPU dependencies for Streamlit Community Cloud
 common/                  Core framework
   models.py                DiscreteBO (BO loop), KANMean (KAN prior), ExactGPModel,
                            eval_DI (composite I_e/I_d/I_u acquisition), AGE evaluation
@@ -278,11 +299,16 @@ benchmark/
 examples/
   example_dataset.csv      synthetic table with a known answer, for analyze.py
   README.md                how the example was built and what a correct analysis shows
+  kan_di_colab.ipynb       Colab notebook: install, run the example, upload your own table
+tests/
+  smoke_test.py            fast check run by CI: imports, eval_func, analyze.py on the example
+.github/workflows/ci.yml   CI: CPU install + smoke test on every push and pull request
 docs/
   make_readme_figures.py   regenerates docs/img/example_run.png from one quickstart run
   img/                     figures used in this README
 requirements.txt           core dependencies (everything the scripts import)
 requirements-optional.txt  extra utilities, grouped by feature
+requirements-app.txt       extra dependencies for the web app (streamlit, openpyxl)
 CITATION.cff
 LICENSE
 ```

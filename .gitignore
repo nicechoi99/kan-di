@@ -38,8 +38,9 @@ env/
 .DS_Store
 Thumbs.db
 
-# analyze.py output folders
+# analyze.py output folders (ci_out/ is the smoke test output)
 results_*/
+ci_out/
 
 # Shipped with the repository: README figures and the example dataset
 !docs/img/

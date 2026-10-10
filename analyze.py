@@ -23,6 +23,9 @@ on/off fixes it instead).
 The iteration counts are a replay on the rows you supply, so they describe this pool, not experiments
 you have not run. Results go to <out>/ (default: results_<file name>/): report.txt,
 descriptor_importance.csv, campaign_replay.csv (with --simulate) and summary.png.
+
+From Python (used by app/streamlit_app.py): `from analyze import analyze` and
+`res = analyze('data.csv', 'yield', fits=1)`; res['table'] holds the importance table.
 """
 import argparse
 import os
@@ -51,17 +54,38 @@ def scale(v, target):
     return target[0] + (target[1] - target[0]) * (v - lo) / span
 
 
-def load_table(path, target, features, minimize):
-    raw = pd.read_csv(path) if not path.lower().endswith(('.xlsx', '.xls')) else pd.read_excel(path)
+class TableError(ValueError):
+    """A column named on the command line (or passed to analyze) is not in the table."""
+
+
+def read_table(table):
+    """Return a DataFrame from a CSV/Excel path, or a copy of a DataFrame."""
+    if isinstance(table, pd.DataFrame):
+        return table.copy()
+    return pd.read_csv(table) if not str(table).lower().endswith(('.xlsx', '.xls')) else pd.read_excel(table)
+
+
+def load_table(path, target, features, minimize, name=None, log=print):
+    """Scale a table of experiments into the candidate-pool format used by the BO code.
+
+    path is a CSV/Excel path or a DataFrame; features is a comma-separated string, a list, or None
+    (every column other than target). Raises TableError when a column is missing.
+    """
+    raw = read_table(path)
     if target not in raw.columns:
-        raise SystemExit('target column %r not found; columns are: %s' % (target, ', '.join(raw.columns)))
-    feats = features.split(',') if features else [c for c in raw.columns if c != target]
+        raise TableError('target column %r not found; columns are: %s' % (target, ', '.join(map(str, raw.columns))))
+    if isinstance(features, str):
+        feats = features.split(',')
+    elif features:
+        feats = list(features)
+    else:
+        feats = [c for c in raw.columns if c != target]
     missing = [f for f in feats if f not in raw.columns]
     if missing:
-        raise SystemExit('feature columns not found: %s' % ', '.join(missing))
+        raise TableError('feature columns not found: %s' % ', '.join(map(str, missing)))
     sub = raw[feats + [target]].apply(pd.to_numeric, errors='coerce').dropna()
     if len(sub) < len(raw):
-        print('note: %d rows with missing or non-numeric values were dropped' % (len(raw) - len(sub)))
+        log('note: %d rows with missing or non-numeric values were dropped' % (len(raw) - len(sub)))
     y = sub[target].to_numpy(float)
     X = scale(sub[feats].to_numpy(float), FEATURE_RANGE)
     Y = scale(-y if minimize else y, OUTPUT_RANGE)
@@ -70,7 +94,9 @@ def load_table(path, target, features, minimize):
     df['Y'] = Y
     df['Z'] = [row[:2] for row in X]
     df.attrs['embedder'] = 'none'
-    df.attrs['data_name'] = os.path.splitext(os.path.basename(path))[0]
+    if name is None:
+        name = 'table' if isinstance(path, pd.DataFrame) else os.path.splitext(os.path.basename(path))[0]
+    df.attrs['data_name'] = name
     df.attrs['features'] = feats
     return df, feats
 
@@ -117,22 +143,22 @@ def age_share(f, X, d):
     return (lam / lam.sum() if lam.sum() > 0 else lam), idx
 
 
-def choose_input_transform(X, y, hyperparams, holdout=0.2):
+def choose_input_transform(X, y, hyperparams, holdout=0.2, log=print):
     """Pick the KAN input transform (log, the paper default, or none) by held-out R2 of the expression."""
     rng = np.random.default_rng(0)
     perm = rng.permutation(len(y))
     n_te = max(int(round(holdout * len(y))), 5)
     te, tr = perm[:n_te], perm[n_te:]
     scores = {}
-    for log in (True, False):
-        hp = dict(hyperparams, log_transformation=log)
-        scores[log] = expression_r2(fit_expression(X[tr], y[tr], 0, hp), X[te], y[te])
-        print('  input transform %-4s held-out R2 = %.2f' % ('log' if log else 'none', scores[log]))
+    for use_log in (True, False):
+        hp = dict(hyperparams, log_transformation=use_log)
+        scores[use_log] = expression_r2(fit_expression(X[tr], y[tr], 0, hp), X[te], y[te])
+        log('  input transform %-4s held-out R2 = %.2f' % ('log' if use_log else 'none', scores[use_log]))
     best = max(scores, key=lambda k: -np.inf if not np.isfinite(scores[k]) else scores[k])
     return best, scores
 
 
-def descriptor_importance(df, n_fits, hyperparams):
+def descriptor_importance(df, n_fits, hyperparams, log=print):
     """AGE share of every descriptor from KANs fitted to all rows, one row per initialization."""
     X = np.vstack(df['X'].values); y = df['Y'].to_numpy(float)
     d = X.shape[1]
@@ -143,7 +169,7 @@ def descriptor_importance(df, n_fits, hyperparams):
         kept[idx] += 1
         shares.append(s)
         r2.append(expression_r2(f, X, y))
-        print('  fit %d/%d: R2 = %.2f, inputs in expression: %s'
+        log('  fit %d/%d: R2 = %.2f, inputs in expression: %s'
               % (seed + 1, n_fits, r2[-1], ', '.join(df.attrs['features'][j] for j in idx) or 'none'))
     return np.array(shares), kept / n_fits, np.array(r2)
 
@@ -191,6 +217,88 @@ def plot_summary(table, sim, path):
     plt.close(fig)
 
 
+def analyze(table, target, features=None, minimize=False, fits=3, log_inputs='auto', simulate=False,
+            seeds=3, n_initial=10, out=None, name=None, log=print):
+    """Run the analysis on a table and return the results (the command line calls this).
+
+    table is a CSV/Excel path or a pandas DataFrame; features is a comma-separated string, a list or
+    None (every other column). With out=None nothing is written to disk; otherwise report.txt,
+    descriptor_importance.csv and (with simulate) campaign_replay.csv are written to out.
+    Progress lines go to log (print by default).
+
+    Returns a dict: table (importance per descriptor, sorted), r2 (R2 of each fitted expression on the
+    rows), log_inputs (transform used), transform_scores (held-out R2 per transform, auto only),
+    sim (replay DataFrame or None), report (text), n_rows, features, out.
+    """
+    df, feats = load_table(table, target, features, minimize, name=name, log=log)
+    if out is not None:
+        os.makedirs(out, exist_ok=True)
+    label = df.attrs['data_name'] if isinstance(table, pd.DataFrame) else table
+    log('%s: %d experiments, %d descriptors' % (label, len(df), len(feats)))
+    X = np.vstack(df['X'].values); y = df['Y'].to_numpy(float)
+
+    log('\n[1] KAN input transform')
+    scores = None
+    if log_inputs == 'auto':
+        use_log, scores = choose_input_transform(X, y, KAN_HYPERPARAMS, log=log)
+        how = 'selected by held-out R2: log %.2f, none %.2f' % (scores[True], scores[False])
+    else:
+        use_log = log_inputs == 'on'
+        how = 'set by --log-inputs'
+    hp = dict(KAN_HYPERPARAMS, log_transformation=use_log)
+    log('  using: %s' % ('log' if use_log else 'none'))
+
+    log('\n[2] descriptor importance (KAN fitted to all rows)')
+    shares, kept, r2 = descriptor_importance(df, fits, hp, log=log)
+    table = pd.DataFrame({'descriptor': feats, 'AGE_share_mean': shares.mean(axis=0), 'AGE_share_sd': shares.std(axis=0),
+                          'in_expression': kept}).sort_values('AGE_share_mean', ascending=False)
+    if out is not None:
+        table.to_csv(os.path.join(out, 'descriptor_importance.csv'), index=False)
+
+    lines = ['KAN input transform: %s (%s)' % ('log' if use_log else 'none', how),
+             'Fit of the closed-form expression to all rows: R2 = %s' % ', '.join('%.2f' % v for v in r2)]
+    if not np.nanmedian(r2) >= 0.5:
+        lines.append('  warning: the expression explains less than half of the variance; treat the ranking as unreliable')
+    lines += ['',
+              'Descriptor importance (mean AGE share over %d KAN fits; in expr. = fraction of fits whose '
+              'pruned expression contains it)' % fits]
+    for r in table.itertuples():
+        lines.append('  %-24s %6.1f%%  (sd %4.1f)  in expr. %3.0f%%'
+                     % (r.descriptor, 100 * r.AGE_share_mean, 100 * r.AGE_share_sd, 100 * r.in_expression))
+    cum = np.cumsum(table['AGE_share_mean'].to_numpy())
+    n90 = int(min(np.searchsorted(cum, 0.9 - 1e-9) + 1, len(feats)))
+    lines.append('  %d of %d descriptors carry 90%% of the gradient energy' % (n90, len(feats)))
+
+    sim = None
+    if simulate:
+        log('\n[3] campaign replay on this pool (%d seeds)' % seeds)
+        y_target = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
+        n_above = int((df['Y'] > y_target).sum())
+        rows = []
+        for seed in range(seeds):
+            for method, m, acq, h in [('KAN-DI', 'KAN', 'DI-UCB-H', hp), ('ZERO-EI', 'ZERO', 'EI', None)]:
+                k = converged_at(run_one(m, acq, h, df, y_target, n_initial, seed), y_target)
+                rows.append({'seed': seed, 'method': method, 'iterations_to_target': k})
+                log('  seed %d  %-7s  %s' % (seed, method, k if k is not None else 'not reached'))
+        sim = pd.DataFrame(rows)
+        if out is not None:
+            sim.to_csv(os.path.join(out, 'campaign_replay.csv'), index=False)
+        lines += ['',
+                  'Campaign replay: %d initial experiments drawn from the lower half of the response range; '
+                  'target = top 10%% of the range (%d of %d rows qualify)' % (n_initial, n_above, len(df))]
+        for method in ('KAN-DI', 'ZERO-EI'):
+            v = sim.loc[sim.method == method, 'iterations_to_target'].dropna().to_numpy(float)
+            lines.append('  %-7s median %s iterations to the target (%d of %d seeds reached it)'
+                         % (method, ('%.0f' % np.median(v)) if len(v) else 'n/a', len(v), seeds))
+        lines.append('  (a replay on the rows supplied: it describes this pool, not experiments you have not run)')
+
+    report = '\n'.join(lines)
+    if out is not None:
+        open(os.path.join(out, 'report.txt'), 'w', encoding='utf-8').write(report + '\n')
+    return {'table': table, 'r2': r2, 'log_inputs': use_log, 'transform_scores': scores, 'sim': sim,
+            'report': report, 'n_rows': len(df), 'features': feats, 'out': out}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__.split('\n', 2)[2])
@@ -207,70 +315,18 @@ def main():
     ap.add_argument('--out', default=None, help='output folder')
     args = ap.parse_args()
 
-    df, feats = load_table(args.table, args.target, args.features, args.minimize)
-    out = args.out or os.path.join(os.getcwd(), 'results_' + df.attrs['data_name'])
-    os.makedirs(out, exist_ok=True)
-    print('%s: %d experiments, %d descriptors' % (args.table, len(df), len(feats)))
-    X = np.vstack(df['X'].values); y = df['Y'].to_numpy(float)
-
-    print('\n[1] KAN input transform')
-    if args.log_inputs == 'auto':
-        log, scores = choose_input_transform(X, y, KAN_HYPERPARAMS)
-        how = 'selected by held-out R2: log %.2f, none %.2f' % (scores[True], scores[False])
-    else:
-        log = args.log_inputs == 'on'
-        how = 'set by --log-inputs'
-    hp = dict(KAN_HYPERPARAMS, log_transformation=log)
-    print('  using: %s' % ('log' if log else 'none'))
-
-    print('\n[2] descriptor importance (KAN fitted to all rows)')
-    shares, kept, r2 = descriptor_importance(df, args.fits, hp)
-    table = pd.DataFrame({'descriptor': feats, 'AGE_share_mean': shares.mean(axis=0), 'AGE_share_sd': shares.std(axis=0),
-                          'in_expression': kept}).sort_values('AGE_share_mean', ascending=False)
-    table.to_csv(os.path.join(out, 'descriptor_importance.csv'), index=False)
-
-    lines = ['KAN input transform: %s (%s)' % ('log' if log else 'none', how),
-             'Fit of the closed-form expression to all rows: R2 = %s' % ', '.join('%.2f' % v for v in r2)]
-    if not np.nanmedian(r2) >= 0.5:
-        lines.append('  warning: the expression explains less than half of the variance; treat the ranking as unreliable')
-    lines += ['',
-              'Descriptor importance (mean AGE share over %d KAN fits; in expr. = fraction of fits whose '
-              'pruned expression contains it)' % args.fits]
-    for r in table.itertuples():
-        lines.append('  %-24s %6.1f%%  (sd %4.1f)  in expr. %3.0f%%'
-                     % (r.descriptor, 100 * r.AGE_share_mean, 100 * r.AGE_share_sd, 100 * r.in_expression))
-    cum = np.cumsum(table['AGE_share_mean'].to_numpy())
-    n90 = int(min(np.searchsorted(cum, 0.9 - 1e-9) + 1, len(feats)))
-    lines.append('  %d of %d descriptors carry 90%% of the gradient energy' % (n90, len(feats)))
-
-    sim = None
-    if args.simulate:
-        print('\n[3] campaign replay on this pool (%d seeds)' % args.seeds)
-        y_target = OUTPUT_RANGE[0] + 0.9 * (OUTPUT_RANGE[1] - OUTPUT_RANGE[0])
-        n_above = int((df['Y'] > y_target).sum())
-        rows = []
-        for seed in range(args.seeds):
-            for name, m, acq, h in [('KAN-DI', 'KAN', 'DI-UCB-H', hp), ('ZERO-EI', 'ZERO', 'EI', None)]:
-                k = converged_at(run_one(m, acq, h, df, y_target, args.n_initial, seed), y_target)
-                rows.append({'seed': seed, 'method': name, 'iterations_to_target': k})
-                print('  seed %d  %-7s  %s' % (seed, name, k if k is not None else 'not reached'))
-        sim = pd.DataFrame(rows)
-        sim.to_csv(os.path.join(out, 'campaign_replay.csv'), index=False)
-        lines += ['',
-                  'Campaign replay: %d initial experiments drawn from the lower half of the response range; '
-                  'target = top 10%% of the range (%d of %d rows qualify)' % (args.n_initial, n_above, len(df))]
-        for name in ('KAN-DI', 'ZERO-EI'):
-            v = sim.loc[sim.method == name, 'iterations_to_target'].dropna().to_numpy(float)
-            lines.append('  %-7s median %s iterations to the target (%d of %d seeds reached it)'
-                         % (name, ('%.0f' % np.median(v)) if len(v) else 'n/a', len(v), args.seeds))
-        lines.append('  (a replay on the rows supplied: it describes this pool, not experiments you have not run)')
-
-    report = '\n'.join(lines)
-    open(os.path.join(out, 'report.txt'), 'w', encoding='utf-8').write(report + '\n')
-    print('\n' + report)
+    name = os.path.splitext(os.path.basename(args.table))[0]
+    out = args.out or os.path.join(os.getcwd(), 'results_' + name)
+    try:
+        res = analyze(args.table, args.target, features=args.features, minimize=args.minimize, fits=args.fits,
+                      log_inputs=args.log_inputs, simulate=args.simulate, seeds=args.seeds,
+                      n_initial=args.n_initial, out=out, name=name)
+    except TableError as e:
+        raise SystemExit(str(e))
+    print('\n' + res['report'])
 
     try:
-        plot_summary(table, sim, os.path.join(out, 'summary.png'))
+        plot_summary(res['table'], res['sim'], os.path.join(out, 'summary.png'))
     except Exception as e:  # the figure is optional; the report and tables are already written
         print('figure skipped: %s' % e)
     print('\nwritten to %s' % out)

@@ -1,0 +1,8 @@
+# Extra dependencies for the web app (app/streamlit_app.py), on top of requirements.txt.
+#
+#   pip install -r requirements.txt -r requirements-app.txt
+#   streamlit run app/streamlit_app.py
+#
+# Streamlit Community Cloud reads app/requirements.txt (next to the entry point) instead.
+streamlit>=1.38,<2
+openpyxl>=3.1                        # Excel upload
