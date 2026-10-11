@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+title: "KAN-DI: Discriminative Bayesian Optimization with a Kolmogorov–Arnold Prior"
+message: "If you use this software, please cite both the software and the paper."
+type: software
+authors:
+  - given-names: Jaehyeong
+    family-names: Choi
+    affiliation: "Korea Institute of Science and Technology; Korea University"
+  - given-names: Damdae
+    family-names: Park
+    affiliation: "Chungnam National University"
+    email: damdaepark@cnu.ac.kr
+  - given-names: Kyeongsu
+    family-names: Kim
+    affiliation: "Korea Institute of Science and Technology"
+    email: kyeongsu@kist.re.kr
+  - given-names: Ung
+    family-names: Lee
+    affiliation: "Sogang University"
+    email: ulee@sogang.ac.kr
+abstract: >-
+  Reference implementation of KAN-DI, the acquisition at the core of the
+  KAN-DoE framework. Bayesian optimization uses a pruned Kolmogorov–Arnold
+  network as the Gaussian-process prior mean and a composite acquisition
+  function (exploitation, discrimination, uniformity), so that one
+  optimization loop maximizes the response and identifies its governing
+  descriptors at the same time. Descriptor importance is the average
+  gradient energy (AGE), the squared partial derivative of the closed-form
+  KAN response averaged over the scaled input domain.
+version: 1.1.1
+date-released: 2026-10-11
+license: MIT
+repository-code: "https://github.com/nicechoi99/kan-di"
+doi: 10.5281/zenodo.22652792
+keywords:
+  - Bayesian optimization
+  - Kolmogorov–Arnold network
+  - descriptor discovery
+  - design of experiments
+  - materials informatics
+preferred-citation:
+  type: unpublished
+  title: "Experimental Design for Descriptor Discovery: Kolmogorov–Arnold Prior with Discriminative Bayesian Optimization"
+  notes: "Manuscript submitted."
+  authors:
+    - given-names: Jaehyeong
+      family-names: Choi
+    - given-names: Damdae
+      family-names: Park
+    - given-names: Muhammad Dzulfahmi
+      family-names: Ramadhan
+    - given-names: Jinu
+      family-names: Choi
+    - given-names: Changsu
+      family-names: Kim
+    - given-names: Ki Bong
+      family-names: Lee
+    - given-names: Kyeongsu
+      family-names: Kim
+    - given-names: Ung
+      family-names: Lee

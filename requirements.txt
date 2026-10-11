@@ -1,0 +1,34 @@
+# Core Python dependencies for KAN-DI (the acquisition of the KAN-DoE framework).
+#
+# Pinned to the versions used to produce the manuscript results
+# (conda env: Python 3.12, CUDA 12.1).
+#
+# Install:
+#   conda create -n kandi python=3.12 && conda activate kandi
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121   # GPU build; omit for CPU
+#   pip install -r requirements.txt
+#
+# This file is everything benchmark/quickstart.py and benchmark/main.py import.
+# Extra utilities (GIF export, extended palettes, dataset embedding, Ray) are in
+# requirements-optional.txt; the benchmarks run without them.
+
+# ── Core scientific stack ─────────────────────────────────────────────────────
+numpy==2.0.2
+pandas==2.2.3
+scipy==1.13.1
+sympy==1.13.1                        # symbolic differentiation of the pruned KAN -> AGE
+matplotlib==3.9.2
+tqdm==4.67.1
+PyYAML==6.0.2
+dill==0.4.0
+
+# ── Bayesian optimization (GP backbone) ───────────────────────────────────────
+torch==2.5.1
+gpytorch==1.13
+linear-operator==0.5.3
+
+# ── Machine learning utilities ────────────────────────────────────────────────
+scikit-learn==1.6.1
+
+# ── KAN library ───────────────────────────────────────────────────────────────
+# Vendored in `common/kan/` (adapted from pykan, MIT). No separate install needed.

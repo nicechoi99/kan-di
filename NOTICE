@@ -1,0 +1,11 @@
+KAN-DI
+Copyright (c) 2026 Jaehyeong Choi, Damdae Park, Kyeongsu Kim, Ung Lee
+Licensed under the MIT License (see LICENSE).
+
+Third-party code
+----------------
+
+The KAN implementation under common/kan/ derives from pykan
+(https://github.com/KindXiaoming/pykan) by Ziming Liu et al., also MIT
+licensed. The file common/kan/custom.py contains the modifications and
+extensions made for this work.
